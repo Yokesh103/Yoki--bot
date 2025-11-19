@@ -1,0 +1,18 @@
+
+version: '3.8'
+services:
+  optionchain:
+    build: ./optionchain-service
+    ports: ["8000:8000"]
+  greeks:
+    build: ./greeks-service
+    ports: ["8001:8001"]
+  signal:
+    build: ./signal-engine
+    ports: ["8002:8002"]
+  ordermanager:
+    build: ./order-manager
+    ports: ["8003:8003"]
+  paperexec:
+    build: ./paper-exec
+    ports: ["8004:8004"]
