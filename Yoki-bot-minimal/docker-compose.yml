@@ -16,3 +16,16 @@ services:
   paperexec:
     build: ./paper-exec
     ports: ["8004:8004"]
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: yoki-bot-minimal-jenkins
+    user: root
+    privileged: true
+    ports:
+      - "8090:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
+volumes:
+  jenkins_home:
