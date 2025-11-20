@@ -1,10 +1,15 @@
 pipeline {
     agent any
 
+    environment {
+        HOST = "host.docker.internal"
+    }
+
     stages {
 
         stage('Checkout') {
             steps {
+                echo "=== Checking out Git repository ==="
                 git branch: 'main',
                     url: 'https://github.com/Yokesh103/Yoki--bot.git'
             }
@@ -12,47 +17,54 @@ pipeline {
 
         stage('Build Docker Images') {
             steps {
-                sh 'echo "Docker build disabled – Jenkins container cannot run Docker directly."'
+                echo "Docker build skipped – Jenkins container cannot run Docker safely."
+                sh 'echo Build stage executed (no-op)'
             }
         }
 
-       stage('Run Tests') {
-    steps {
-        sh '''
-            echo "=== Smoke Test: OptionChain ==="
-            curl -sf "http://localhost:8000/optionchain?symbol=BANKNIFTY" || exit 1
+        stage('Run Smoke Tests') {
+            steps {
+                sh '''
+                echo "=== Smoke Test 1: OptionChain ==="
+                curl -sf "http://$HOST:8000/optionchain?symbol=BANKNIFTY" || exit 1
 
-            echo "=== Smoke Test: Greeks ==="
-            curl -sf -X POST "http://localhost:8001/compute" \
-                -H "Content-Type: application/json" \
-                -d '{"ltp":400,"strike":59000,"ttm_days":3,"option_type":"CE","underlying":59039}' || exit 1
+                echo "=== Smoke Test 2: Greeks ==="
+                curl -sf -X POST "http://$HOST:8001/compute" \
+                    -H "Content-Type: application/json" \
+                    -d '{"ltp":400,"strike":59000,"ttm_days":3,"option_type":"CE","underlying":59039}' || exit 1
 
-            echo "=== Smoke Test: Signal ==="
-            curl -sf "http://localhost:8002/signal?symbol=BANKNIFTY" || exit 1
+                echo "=== Smoke Test 3: Signal ==="
+                curl -sf "http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY" || exit 1
 
-            echo "=== Smoke Test: OrderManager ==="
-            curl -sf -X POST "http://localhost:8003/submit" \
-                -H "Content-Type: application/json" \
-                -d '{"symbol":"BANKNIFTY","qty":25}' || exit 1
+                echo "=== Smoke Test 4: OrderManager ==="
+                curl -sf -X POST "http://$HOST:8003/createOrder" \
+                    -H "Content-Type: application/json" \
+                    -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}' || exit 1
 
-            echo "=== Smoke Test: PaperExec ==="
-            curl -sf -X POST "http://localhost:8004/exec" \
-                -H "Content-Type: application/json" \
-                -d '{"order_id":"smoke-test"}' || exit 1
+                echo "=== Smoke Test 5: PaperExec ==="
+                curl -sf -X POST "http://$HOST:8004/exec" \
+                    -H "Content-Type: application/json" \
+                    -d '{"order_id":"test-1","legs":[],"qty":25}' || exit 1
 
-            echo "=== ALL SMOKE TESTS PASSED ==="
-        '''
-    }
-}
-
+                echo "=== All Smoke Tests Passed Successfully ==="
+                '''
+            }
+        }
 
         stage('Push to Registry') {
-            when {
-                expression { return false }   // disabled intentionally
-            }
+            when { expression { false } }  // Disabled for now
             steps {
-                sh 'echo "Push image to registry"'
+                echo "Push to registry disabled."
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Pipeline SUCCESS — All services healthy and responding."
+        }
+        failure {
+            echo "Pipeline FAILED — One or more smoke tests did not respond."
         }
     }
 }
