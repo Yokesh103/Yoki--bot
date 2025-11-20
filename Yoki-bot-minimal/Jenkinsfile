@@ -15,12 +15,15 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
-            steps {
-                echo "Docker build skipped – Jenkins container cannot run Docker safely."
-                sh 'echo Build stage executed (no-op)'
-            }
-        }
+       stage('Build Docker Images') {
+    steps {
+        echo "Docker build skipped – Jenkins container cannot run Docker safely."
+        sh '''
+            echo "Build stage executed - no Docker build inside Jenkins"
+        '''
+    }
+}
+
 
         stage('Run Smoke Tests') {
             steps {
