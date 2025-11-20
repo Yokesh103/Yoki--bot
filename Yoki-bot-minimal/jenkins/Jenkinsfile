@@ -1,0 +1,28 @@
+pipeline {
+    agent any
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/Yoki-bot.git'
+            }
+        }
+        stage('Build Docker Images') {
+            steps {
+                sh 'docker-compose build'
+            }
+        }
+        stage('Run Tests') {
+            steps {
+                sh 'echo "Run unit tests here"'
+            }
+        }
+        stage('Push to Registry') {
+            when {
+                expression { return false }   // disable by default
+            }
+            steps {
+                sh 'echo "Push image to registry"'
+            }
+        }
+    }
+}
