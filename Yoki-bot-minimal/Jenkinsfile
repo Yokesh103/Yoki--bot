@@ -26,23 +26,25 @@ pipeline {
             steps {
 
                 echo "=== Waiting for greeks-service ==="
-                sh '''
+                sh """
                     for i in {1..30}; do
-                        if curl -sf http://host.docker.internal:8001/health >/dev/null; then
+                        if curl -sf http://$HOST:8001/health >/dev/null; then
                             echo "greeks-service is UP"
                             break
                         fi
                         echo "waiting for greeks-service..."
                         sleep 2
                     done
-                '''
+                """
 
                 echo "=== Smoke Test 1: OptionChain ==="
-                sh 'curl -sf "http://host.docker.internal:8000/optionchain?symbol=BANKNIFTY"'
+                sh """
+                    curl -sf "http://$HOST:8000/optionchain?symbol=BANKNIFTY"
+                """
 
                 echo "=== Smoke Test 2: Greeks (Black-76) ==="
-                sh '''
-                    curl -sf -X POST "http://host.docker.internal:8001/compute" \
+                sh """
+                    curl -sf -X POST "http://$HOST:8001/compute" \
                       -H "Content-Type: application/json" \
                       -d '{
                           "underlying": 59039,
@@ -52,24 +54,26 @@ pipeline {
                           "option_type": "CE",
                           "model": "black76"
                       }'
-                '''
+                """
 
                 echo "=== Smoke Test 3: Signal ==="
-                sh 'curl -sf "http://host.docker.internal:8002/signal?strategy=butterfly&symbol=BANKNIFTY"'
+                sh """
+                    curl -sf "http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY"
+                """
 
                 echo "=== Smoke Test 4: OrderManager ==="
-                sh '''
-                    curl -sf -X POST "http://host.docker.internal:8003/createOrder" \
+                sh """
+                    curl -sf -X POST "http://$HOST:8003/createOrder" \
                     -H "Content-Type: application/json" \
                     -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
-                '''
+                """
 
                 echo "=== Smoke Test 5: PaperExec ==="
-                sh '''
-                    curl -sf -X POST "http://host.docker.internal:8004/exec" \
+                sh """
+                    curl -sf -X POST "http://$HOST:8004/exec" \
                     -H "Content-Type: application/json" \
                     -d '{"order_id":"test-1","legs":[],"qty":25}'
-                '''
+                """
             }
         }
 
