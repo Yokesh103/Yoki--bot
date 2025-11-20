@@ -43,15 +43,15 @@ pipeline {
                 echo "=== Smoke Test 2: Greeks (Black-76) ==="
                 sh '''
                     curl -sf -X POST "http://host.docker.internal:8001/compute" \
-                    -H "Content-Type: application/json" \
-                    -d '{
-                        "underlying": 59039,
-                        "strike": 59000,
-                        "option_price": 410,
-                        "expiry": "2025-11-20T15:30:00",
-                        "option_type": "CE",
-                        "model": "black76"
-                    }'
+                      -H "Content-Type: application/json" \
+                      -d '{
+                          "underlying": 59039,
+                          "strike": 59000,
+                          "option_price": 410,
+                          "expiry": "2025-11-20T15:30:00",
+                          "option_type": "CE",
+                          "model": "black76"
+                      }'
                 '''
 
                 echo "=== Smoke Test 3: Signal ==="
