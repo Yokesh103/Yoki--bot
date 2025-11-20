@@ -1,24 +1,30 @@
 pipeline {
     agent any
+
     stages {
+
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/Yokesh103/Yoki--bot/tree/main'
+                git branch: 'main',
+                    url: 'https://github.com/Yokesh103/Yoki--bot.git'
             }
         }
+
         stage('Build Docker Images') {
             steps {
-                sh 'docker-compose build'
+                sh 'echo "Docker build disabled – Jenkins container cannot run Docker directly."'
             }
         }
+
         stage('Run Tests') {
             steps {
                 sh 'echo "Run unit tests here"'
             }
         }
+
         stage('Push to Registry') {
             when {
-                expression { return false }   // disable by default
+                expression { return false }   // disabled intentionally
             }
             steps {
                 sh 'echo "Push image to registry"'
