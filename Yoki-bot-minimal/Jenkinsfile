@@ -15,15 +15,14 @@ pipeline {
             }
         }
 
-       stage('Build Docker Images') {
-    steps {
-        echo "Docker build skipped – Jenkins container cannot run Docker safely."
-        sh '''
-            echo "Build stage executed - no Docker build inside Jenkins"
-        '''
-    }
-}
-
+        stage('Build Docker Images') {
+            steps {
+                echo "Docker build skipped – Jenkins container cannot run Docker safely."
+                sh '''
+                    echo "Build stage executed - no Docker build inside Jenkins"
+                '''
+            }
+        }
 
         stage('Run Smoke Tests') {
             steps {
@@ -49,13 +48,19 @@ pipeline {
                     -H "Content-Type: application/json" \
                     -d '{"order_id":"test-1","legs":[],"qty":25}' || exit 1
 
+                echo "=== EXTRA TEST: Greeks Model Test ==="
+                curl -sf -X POST "http://$HOST:8001/compute" \
+                    -H "Content-Type: application/json" \
+                    -d '{"underlying":59039,"strike":59000,"option_price":410,
+                         "expiry":"2025-11-20T15:30:00","option_type":"CE","model":"black76"}' || exit 1
+
                 echo "=== All Smoke Tests Passed Successfully ==="
                 '''
             }
         }
 
         stage('Push to Registry') {
-            when { expression { false } }  // Disabled for now
+            when { expression { false } } 
             steps {
                 echo "Push to registry disabled."
             }
