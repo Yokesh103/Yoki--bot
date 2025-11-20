@@ -3,7 +3,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/YOUR_USERNAME/Yoki-bot.git'
+                git branch: 'main', url: 'https://github.com/Yokesh103/Yoki--bot/tree/main'
             }
         }
         stage('Build Docker Images') {
