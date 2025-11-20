@@ -18,9 +18,7 @@ pipeline {
         stage('Build Docker Images') {
             steps {
                 echo "Docker build skipped – Jenkins container cannot run Docker safely."
-                sh '''
-                    echo "Build stage executed - no Docker build inside Jenkins"
-                '''
+                sh 'echo "Build stage executed - no Docker build inside Jenkins"'
             }
         }
 
@@ -40,49 +38,43 @@ pipeline {
                 '''
 
                 echo "=== Smoke Test 1: OptionChain ==="
-                sh '''
-                    curl -sf "http://host.docker.internal:8000/optionchain?symbol=BANKNIFTY"
-                '''
+                sh 'curl -sf "http://host.docker.internal:8000/optionchain?symbol=BANKNIFTY"'
 
                 echo "=== Smoke Test 2: Greeks (Black-76) ==="
                 sh '''
                     curl -sf -X POST "http://host.docker.internal:8001/compute" \
-                      -H "Content-Type: application/json" \
-                      -d '{
-                            "underlying": 59039,
-                            "strike": 59000,
-                            "option_price": 410,
-                            "expiry": "2025-11-20T15:30:00",
-                            "option_type": "CE",
-                            "model": "black76"
-                          }'
+                    -H "Content-Type: application/json" \
+                    -d '{
+                        "underlying": 59039,
+                        "strike": 59000,
+                        "option_price": 410,
+                        "expiry": "2025-11-20T15:30:00",
+                        "option_type": "CE",
+                        "model": "black76"
+                    }'
                 '''
 
                 echo "=== Smoke Test 3: Signal ==="
-                sh '''
-                    curl -sf "http://host.docker.internal:8002/signal?strategy=butterfly&symbol=BANKNIFTY"
-                '''
+                sh 'curl -sf "http://host.docker.internal:8002/signal?strategy=butterfly&symbol=BANKNIFTY"'
 
                 echo "=== Smoke Test 4: OrderManager ==="
                 sh '''
                     curl -sf -X POST "http://host.docker.internal:8003/createOrder" \
-                        -H "Content-Type: application/json" \
-                        -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
+                    -H "Content-Type: application/json" \
+                    -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
                 '''
 
                 echo "=== Smoke Test 5: PaperExec ==="
                 sh '''
                     curl -sf -X POST "http://host.docker.internal:8004/exec" \
-                        -H "Content-Type: application/json" \
-                        -d '{"order_id":"test-1","legs":[],"qty":25}'
+                    -H "Content-Type: application/json" \
+                    -d '{"order_id":"test-1","legs":[],"qty":25}'
                 '''
-
-                echo "=== All Smoke Tests Passed Successfully ==="
             }
         }
 
         stage('Push to Registry') {
-            when { expression { false } }  // Disable push
+            when { expression { false } }
             steps {
                 echo "Push to registry disabled."
             }
