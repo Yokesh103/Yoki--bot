@@ -2,7 +2,13 @@ pipeline {
     agent any
 
     environment {
+        // This is a common variable, but remember it only works reliably with Docker Desktop.
+        // If running on Linux/cloud, you might need to change this to the gateway IP (e.g., 172.17.0.1)
+        // or ensure your Jenkins agent is using --network host.
         HOST = "host.docker.internal"
+        SERVICE_HEALTH_PORT = 8001 // Targeting greeks-service for the initial health check
+        MAX_RETRIES = 15 // Check every 2 seconds for 30 seconds total
+        RETRY_DELAY = 2
     }
 
     stages {
@@ -15,72 +21,82 @@ pipeline {
             }
         }
 
-        stage('Build Docker Images') {
+        // Renamed and changed to DEPLOY the services
+        stage('Deploy and Test Services') {
             steps {
-                echo "Docker build skipped – Jenkins container cannot run Docker safely."
-                sh 'echo "Build stage executed - no Docker build inside Jenkins"'
-            }
-        }
+                script {
+                    try {
+                        echo "=== Starting Microservices via Docker Compose ==="
+                        // This command starts all services defined in your docker-compose.yml in the background
+                        // NOTE: Your Jenkins agent must have access to the 'docker' and 'docker-compose' commands.
+                        sh 'docker-compose up --build -d'
+                        
+                        // --- Robust Health Check ---
+                        echo "=== Waiting for greeks-service to be healthy (Max 30s) ==="
+                        def maxRetries = env.MAX_RETRIES.toInteger()
+                        def delay = env.RETRY_DELAY.toInteger()
+                        def isReady = false
 
-        stage('Run Smoke Tests') {
-            steps {
+                        for (int i = 1; i <= maxRetries; i++) {
+                            // Suppress curl output to keep logs clean, exit code determines success
+                            def status = sh(script: "curl -sf http://$HOST:$SERVICE_HEALTH_PORT/health", returnStatus: true, quiet: true)
+                            
+                            if (status == 0) {
+                                echo "greeks-service is UP and healthy after ${i * delay} seconds."
+                                isReady = true
+                                break
+                            } else {
+                                echo "Attempt ${i}/${maxRetries}: Service not ready. Waiting ${delay}s..."
+                                sleep(time: delay, unit: 'SECONDS')
+                            }
+                        }
 
-                echo "=== Waiting for greeks-service ==="
-                sh """
-                READY=false
-                for i in {1..30}; do
-                    if curl -sf http://$HOST:8001/health >/dev/null; then
-                        echo "greeks-service is UP"
-                        READY=true
-                        break
-                    fi
-                    echo "waiting for greeks-service..."
-                    sleep 2
-                done
+                        if (!isReady) {
+                            error "greeks-service NEVER became healthy on port ${SERVICE_HEALTH_PORT}. Stopping pipeline."
+                        }
 
-                if [ "\$READY" = false ]; then
-                    echo "greeks-service NEVER became healthy"
-                    exit 1
-                fi
-                """
+                        // --- Run All Smoke Tests (Now that the service is running) ---
 
-                echo "=== Smoke Test 1: OptionChain ==="
-                sh """
-                curl -sf "http://$HOST:8000/optionchain?symbol=BANKNIFTY"
-                """
+                        echo "=== Smoke Test 1: OptionChain ==="
+                        sh "curl -sS -X GET 'http://$HOST:8000/optionchain?symbol=BANKNIFTY'"
 
-                echo "=== Smoke Test 2: Greeks (Black-76) ==="
-                sh """
-                curl -sf -X POST "http://$HOST:8001/compute" \
-                  -H "Content-Type: application/json" \
-                  -d '{
-                    "underlying": 59039,
-                    "strike": 59000,
-                    "option_price": 410,
-                    "expiry": "2025-11-20T15:30:00",
-                    "option_type": "CE",
-                    "model": "black76"
-                  }'
-                """
+                        echo "=== Smoke Test 2: Greeks (Black-76) ==="
+                        sh """
+                        curl -sS -X POST "http://$HOST:8001/compute" \\
+                            -H "Content-Type: application/json" \\
+                            -d '{
+                                "underlying": 59039,
+                                "strike": 59000,
+                                "option_price": 410,
+                                "expiry": "2025-11-20T15:30:00",
+                                "option_type": "CE",
+                                "model": "black76"
+                              }'
+                        """
 
-                echo "=== Smoke Test 3: Signal ==="
-                sh """
-                curl -sf "http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY"
-                """
+                        echo "=== Smoke Test 3: Signal ==="
+                        sh "curl -sS -X GET 'http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY'"
 
-                echo "=== Smoke Test 4: OrderManager ==="
-                sh """
-                curl -sf -X POST "http://$HOST:8003/createOrder" \
-                -H "Content-Type: application/json" \
-                -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
-                """
+                        echo "=== Smoke Test 4: OrderManager ==="
+                        sh """
+                        curl -sS -X POST "http://$HOST:8003/createOrder" \\
+                        -H "Content-Type: application/json" \\
+                        -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
+                        """
 
-                echo "=== Smoke Test 5: PaperExec ==="
-                sh """
-                curl -sf -X POST "http://$HOST:8004/exec" \
-                -H "Content-Type: application/json" \
-                -d '{"order_id":"test-1","legs":[],"qty":25}'
-                """
+                        echo "=== Smoke Test 5: PaperExec ==="
+                        sh """
+                        curl -sS -X POST "http://$HOST:8004/exec" \\
+                        -H "Content-Type: application/json" \\
+                        -d '{"order_id":"test-1","legs":[],"qty":25}'
+                        """
+                    } finally {
+                        // --- Mandatory Cleanup ---
+                        echo "=== Tearing down services (docker-compose down) ==="
+                        // This executes regardless of whether the tests passed or failed.
+                        sh 'docker-compose down'
+                    }
+                }
             }
         }
 
@@ -97,7 +113,7 @@ pipeline {
             echo "Pipeline SUCCESS — All services healthy and responding."
         }
         failure {
-            echo "Pipeline FAILED — One or more smoke tests did not respond."
+            echo "Pipeline FAILED — One or more smoke tests failed or services did not start."
         }
     }
 }
