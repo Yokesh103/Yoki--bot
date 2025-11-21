@@ -27,52 +27,59 @@ pipeline {
 
                 echo "=== Waiting for greeks-service ==="
                 sh """
-                    for i in {1..30}; do
-                        if curl -sf http://$HOST:8001/health >/dev/null; then
-                            echo "greeks-service is UP"
-                            break
-                        fi
-                        echo "waiting for greeks-service..."
-                        sleep 2
-                    done
+                READY=false
+                for i in {1..30}; do
+                    if curl -sf http://$HOST:8001/health >/dev/null; then
+                        echo "greeks-service is UP"
+                        READY=true
+                        break
+                    fi
+                    echo "waiting for greeks-service..."
+                    sleep 2
+                done
+
+                if [ "\$READY" = false ]; then
+                    echo "greeks-service NEVER became healthy"
+                    exit 1
+                fi
                 """
 
                 echo "=== Smoke Test 1: OptionChain ==="
                 sh """
-                    curl -sf "http://$HOST:8000/optionchain?symbol=BANKNIFTY"
+                curl -sf "http://$HOST:8000/optionchain?symbol=BANKNIFTY"
                 """
 
                 echo "=== Smoke Test 2: Greeks (Black-76) ==="
                 sh """
-                    curl -sf -X POST "http://$HOST:8001/compute" \
-                      -H "Content-Type: application/json" \
-                      -d '{
-                          "underlying": 59039,
-                          "strike": 59000,
-                          "option_price": 410,
-                          "expiry": "2025-11-20T15:30:00",
-                          "option_type": "CE",
-                          "model": "black76"
-                      }'
+                curl -sf -X POST "http://$HOST:8001/compute" \
+                  -H "Content-Type: application/json" \
+                  -d '{
+                    "underlying": 59039,
+                    "strike": 59000,
+                    "option_price": 410,
+                    "expiry": "2025-11-20T15:30:00",
+                    "option_type": "CE",
+                    "model": "black76"
+                  }'
                 """
 
                 echo "=== Smoke Test 3: Signal ==="
                 sh """
-                    curl -sf "http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY"
+                curl -sf "http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY"
                 """
 
                 echo "=== Smoke Test 4: OrderManager ==="
                 sh """
-                    curl -sf -X POST "http://$HOST:8003/createOrder" \
-                    -H "Content-Type: application/json" \
-                    -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
+                curl -sf -X POST "http://$HOST:8003/createOrder" \
+                -H "Content-Type: application/json" \
+                -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
                 """
 
                 echo "=== Smoke Test 5: PaperExec ==="
                 sh """
-                    curl -sf -X POST "http://$HOST:8004/exec" \
-                    -H "Content-Type: application/json" \
-                    -d '{"order_id":"test-1","legs":[],"qty":25}'
+                curl -sf -X POST "http://$HOST:8004/exec" \
+                -H "Content-Type: application/json" \
+                -d '{"order_id":"test-1","legs":[],"qty":25}'
                 """
             }
         }
