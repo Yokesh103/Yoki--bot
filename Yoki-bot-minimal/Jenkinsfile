@@ -2,12 +2,9 @@ pipeline {
     agent any
 
     environment {
-        // This is a common variable, but remember it only works reliably with Docker Desktop.
-        // If running on Linux/cloud, you might need to change this to the gateway IP (e.g., 172.17.0.1)
-        // or ensure your Jenkins agent is using --network host.
         HOST = "host.docker.internal"
-        SERVICE_HEALTH_PORT = 8001 // Targeting greeks-service for the initial health check
-        MAX_RETRIES = 15 // Check every 2 seconds for 30 seconds total
+        SERVICE_HEALTH_PORT = 8001
+        MAX_RETRIES = 15
         RETRY_DELAY = 2
     }
 
@@ -21,25 +18,23 @@ pipeline {
             }
         }
 
-        // Renamed and changed to DEPLOY the services
         stage('Deploy and Test Services') {
             steps {
                 script {
                     try {
-                        echo "=== Starting Microservices via Docker Compose ==="
-                        // This command starts all services defined in your docker-compose.yml in the background
-                        // NOTE: Your Jenkins agent must have access to the 'docker' and 'docker-compose' commands.
-                        sh 'docker-compose up --build -d'
+                        echo "=== Starting Microservices via Docker Compose (modern syntax) ==="
+
+                        // Use modern Docker Compose v2 syntax
+                        sh 'docker compose version'
+                        sh 'docker compose up --build -d'
                         
-                        // --- Robust Health Check ---
                         echo "=== Waiting for greeks-service to be healthy (Max 30s) ==="
                         def maxRetries = env.MAX_RETRIES.toInteger()
                         def delay = env.RETRY_DELAY.toInteger()
                         def isReady = false
 
                         for (int i = 1; i <= maxRetries; i++) {
-                            // Suppress curl output to keep logs clean, exit code determines success
-                            def status = sh(script: "curl -sf http://$HOST:$SERVICE_HEALTH_PORT/health", returnStatus: true, quiet: true)
+                            def status = sh(script: "curl -sf http://$HOST:$SERVICE_HEALTH_PORT/health", returnStatus: true)
                             
                             if (status == 0) {
                                 echo "greeks-service is UP and healthy after ${i * delay} seconds."
@@ -55,13 +50,11 @@ pipeline {
                             error "greeks-service NEVER became healthy on port ${SERVICE_HEALTH_PORT}. Stopping pipeline."
                         }
 
-                        // --- Run All Smoke Tests (Now that the service is running) ---
-
                         echo "=== Smoke Test 1: OptionChain ==="
                         sh "curl -sS -X GET 'http://$HOST:8000/optionchain?symbol=BANKNIFTY'"
 
                         echo "=== Smoke Test 2: Greeks (Black-76) ==="
-                        sh """
+                        sh '''
                         curl -sS -X POST "http://$HOST:8001/compute" \\
                             -H "Content-Type: application/json" \\
                             -d '{
@@ -72,29 +65,28 @@ pipeline {
                                 "option_type": "CE",
                                 "model": "black76"
                               }'
-                        """
+                        '''
 
                         echo "=== Smoke Test 3: Signal ==="
                         sh "curl -sS -X GET 'http://$HOST:8002/signal?strategy=butterfly&symbol=BANKNIFTY'"
 
                         echo "=== Smoke Test 4: OrderManager ==="
-                        sh """
+                        sh '''
                         curl -sS -X POST "http://$HOST:8003/createOrder" \\
                         -H "Content-Type: application/json" \\
                         -d '{"symbol":"BANKNIFTY","strategy":"butterfly","legs":[]}'
-                        """
+                        '''
 
                         echo "=== Smoke Test 5: PaperExec ==="
-                        sh """
+                        sh '''
                         curl -sS -X POST "http://$HOST:8004/exec" \\
                         -H "Content-Type: application/json" \\
                         -d '{"order_id":"test-1","legs":[],"qty":25}'
-                        """
+                        '''
+
                     } finally {
-                        // --- Mandatory Cleanup ---
-                        echo "=== Tearing down services (docker-compose down) ==="
-                        // This executes regardless of whether the tests passed or failed.
-                        sh 'docker-compose down'
+                        echo "=== Tearing down services (docker compose down) ==="
+                        sh 'docker compose down'
                     }
                 }
             }
