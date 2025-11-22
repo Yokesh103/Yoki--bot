@@ -15,7 +15,7 @@ class MarketDataSource(ABC):
 class RestMarketDataSource(MarketDataSource):
     def get_snapshot(self, instrument_keys: List[str]) -> Dict[str, Any]:
         headers = {
-            "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}",
+            "Authorization": f"Bearer {eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI4QkFMRUgiLCJqdGkiOiI2OTIxOTU2MWNmYzJkNzQ4ZWQwN2MyZDgiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6ZmFsc2UsImlhdCI6MTc2MzgwODYwOSwiaXNzIjoidWRhcGktZ2F0ZXdheS1zZXJ2aWNlIiwiZXhwIjoxNzYzODQ4ODAwfQ.zB3B2fuCp13ji3BOxfKnIojo890FV6211LxEo6lG88k}",
             "Accept": "application/json",
         }
 
