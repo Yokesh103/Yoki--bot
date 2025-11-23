@@ -2,12 +2,12 @@ from fastapi import FastAPI
 from app.engine.evaluate_credit_spread import evaluate_credit_spread
 from app.engine.risk_guard import passes_risk_guard
 from app.engine.decision_logger import log_decision
-from app.db import init_db
+
 from app.alert_client import send_alert
 
 app = FastAPI(title="Signal Engine")
 
-init_db()
+
 
 @app.get("/signal")
 def generate_signal():
