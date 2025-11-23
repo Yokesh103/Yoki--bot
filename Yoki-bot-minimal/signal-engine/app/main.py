@@ -1,23 +1,28 @@
 from fastapi import FastAPI
-from app.models import DecideRequest, DecisionResult
-from app.engine import market_state, evaluate_credit_spread
-from app.config import OPTIONCHAIN_SERVICE_URL
-import requests
+from app.engine.evaluate_credit_spread import evaluate_credit_spread
+from app.engine.risk_guard import passes_risk_guard
+from app.engine.decision_logger import log_decision
+from app.db import init_db
+from app.alert_client import send_alert
 
 app = FastAPI(title="Signal Engine")
 
-@app.post("/decide", response_model=DecisionResult)
-def decide(req: DecideRequest):
-    # master controller
-    ms = market_state(req.indicators)
-    # hard exclusions
-    if req.indicators.vix and req.indicators.vix > 25:
-        # log rejection and return
-        return DecisionResult(action="NO_TRADE", strategy=None, reason="VIX_PANIC", trade_payload=None)
-    # ADX-first gating and selection
-    if ms == "TREND":
-        # call directional evaluator (not implemented here)
-        return DecisionResult(action="NO_TRADE", strategy="DIRECTIONAL", reason="NOT_IMPLEMENTED", trade_payload=None)
-    # expiry/time -> butterfly decision is done inside other evaluators
-    # condor check if ivrank high... delegating to credit spread for now
-    return evaluate_credit_spread(req)
+init_db()
+
+@app.get("/signal")
+def generate_signal():
+    data = {"spot": 22500, "adx": 18, "iv_rank": 40}
+
+    # run strategy logic
+    signal = evaluate_credit_spread(data)
+
+    # risk validation
+    if not passes_risk_guard(signal):
+        log_decision("REJECTED", reason="Risk Check Failed", details=signal)
+        return {"status": "rejected", "reason": "risk check failed"}
+
+    # if everything is good → send alert
+    send_alert(signal)
+    log_decision("EXECUTED", details=signal)
+
+    return {"status": "ok", "signal": signal}
