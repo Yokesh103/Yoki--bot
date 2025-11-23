@@ -1,5 +1,7 @@
+# signal-engine/app/engine/evaluate_credit_spread.py
+
 from app.engine.models import DecideRequest, DecisionResult
-from app.engine.risk_guard import passes_risk_guard
+# NOTE: remove passes_risk_guard import from here — risk check happens in API layer
 from app.config import SIMULATED_CHARGES, PREMIUM_THRESHOLD
 from uuid import uuid4
 
@@ -7,6 +9,7 @@ from uuid import uuid4
 def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
     dec_id = str(uuid4())
 
+    # If you're on Pydantic v2, consider using model_dump(); keep .dict() if it works for you.
     insts = [i.dict() for i in req.instruments]
 
     pes = [i for i in insts if i["opt_type"] == "PE"]
@@ -49,19 +52,18 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
 
     net_premium = gross_premium - SIMULATED_CHARGES
 
+    # calculate max risk but do NOT enforce it here
     max_risk = (short_leg["strike"] - hedge_leg["strike"]) * 50 - gross_premium * 50
 
-    ok, risk_reason = passes_risk_guard(max_risk)
-
-    if not ok:
-        action = "NO_TRADE"
-        reason = risk_reason
-    elif net_premium < PREMIUM_THRESHOLD:
-        action = "NO_TRADE"
-        reason = "PREMIUM_TOO_LOW"
-    else:
-        action = "TRADE"
-        reason = None
+    # Decision logic: premium threshold only (keep strategy-level rejection)
+    if net_premium < PREMIUM_THRESHOLD:
+        return DecisionResult(
+            action="NO_TRADE",
+            strategy="CREDIT_SPREAD",
+            reason="PREMIUM_TOO_LOW",
+            trade_payload=None,
+            decision_id=dec_id
+        )
 
     trade_payload = {
         "underlying": req.underlying,
@@ -77,9 +79,9 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
     }
 
     return DecisionResult(
-        action=action,
+        action="TRADE",
         strategy="CREDIT_SPREAD",
-        reason=reason,
+        reason=None,
         trade_payload=trade_payload,
         decision_id=dec_id
     )

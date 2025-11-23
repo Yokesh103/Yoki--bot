@@ -26,21 +26,23 @@ def generate_signal():
 
     decision = evaluate_credit_spread(request)
 
-    if decision.action == "NO_TRADE":
-        return {
-            "status": "rejected",
-            "reason": decision.reason
-        }
-
-    ok, risk_reason = passes_risk_guard(decision.trade_payload["max_risk"])
-
-    if not ok:
-        return {
-            "status": "rejected",
-            "reason": risk_reason
-        }
-
+if decision.action == "NO_TRADE":
     return {
-        "status": "ok",
-        "signal": decision.model_dump(exclude_unset=True)
+        "status": "rejected",
+        "reason": decision.reason
     }
+
+ok, risk_reason = passes_risk_guard(decision.trade_payload["max_risk"])
+
+if not ok:
+    return {
+        "status": "rejected",
+        "reason": risk_reason
+    }
+
+return {
+    "status": "ok",
+    "signal": decision.model_dump(exclude_unset=True)
+}
+
+
