@@ -5,7 +5,7 @@ from uuid import uuid4
 
 
 def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
-    dec_id = str(uuid4())  # unique decision id
+    dec_id = str(uuid4())
 
     insts = [i.dict() for i in req.instruments]
 
@@ -27,7 +27,11 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
 
     short_leg = max(candidates, key=lambda x: x.get("oi", 0))
 
-    hedge_candidates = [i for i in pes if i["strike"] == short_leg["strike"] - 200]
+    hedge_candidates = [
+        i for i in pes
+        if i["strike"] == short_leg["strike"] - 200
+    ]
+
     if not hedge_candidates:
         return DecisionResult(
             action="NO_TRADE",
@@ -44,6 +48,7 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
     gross_premium = short_prem - hedge_prem
 
     net_premium = gross_premium - SIMULATED_CHARGES
+
     max_risk = (short_leg["strike"] - hedge_leg["strike"]) * 50 - gross_premium * 50
 
     ok, risk_reason = passes_risk_guard(max_risk)

@@ -1,28 +1,46 @@
 from fastapi import FastAPI
+from app.db import init_db
 from app.engine.evaluate_credit_spread import evaluate_credit_spread
+from app.engine.models import DecideRequest, Instrument
 from app.engine.risk_guard import passes_risk_guard
-from app.engine.decision_logger import log_decision
-
-from app.alert_client import send_alert
 
 app = FastAPI(title="Signal Engine")
 
-
+@app.on_event("startup")
+def startup():
+    init_db()
 
 @app.get("/signal")
 def generate_signal():
-    data = {"spot": 22500, "adx": 18, "iv_rank": 40}
 
-    # run strategy logic
-    signal = evaluate_credit_spread(data)
+    # MOCK DATA (will later come from option-chain service)
+    request = DecideRequest(
+        underlying="NIFTY",
+        expiry="2025-11-27",
+        spot=22500,
+        instruments=[
+            Instrument(strike=22300, opt_type="PE", ltp=120, oi=150000),
+            Instrument(strike=22100, opt_type="PE", ltp=60, oi=90000),
+        ]
+    )
 
-    # risk validation
-    if not passes_risk_guard(signal):
-        log_decision("REJECTED", reason="Risk Check Failed", details=signal)
-        return {"status": "rejected", "reason": "risk check failed"}
+    decision = evaluate_credit_spread(request)
 
-    # if everything is good → send alert
-    send_alert(signal)
-    log_decision("EXECUTED", details=signal)
+    if decision.action == "NO_TRADE":
+        return {
+            "status": "rejected",
+            "reason": decision.reason
+        }
 
-    return {"status": "ok", "signal": signal}
+    ok, risk_reason = passes_risk_guard(decision.trade_payload["max_risk"])
+
+    if not ok:
+        return {
+            "status": "rejected",
+            "reason": risk_reason
+        }
+
+    return {
+        "status": "ok",
+        "signal": decision.model_dump(exclude_unset=True)
+    }
