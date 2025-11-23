@@ -24,3 +24,10 @@ docker-compose up --build
 
 ## Notes
 - All services are placeholder stubs. Replace placeholder logic with real NSE scraping, Greeks computation and strategy rules.
+
+signal -engine
+cd signal-engine
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8100
