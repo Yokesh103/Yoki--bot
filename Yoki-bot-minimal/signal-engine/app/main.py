@@ -1,5 +1,4 @@
 from fastapi import FastAPI
-from datetime import date
 from app.db import init_db
 from app.engine.evaluate_credit_spread import evaluate_credit_spread
 from app.engine.models import DecideRequest
@@ -18,7 +17,7 @@ def generate_signal():
 
     dummy_request = DecideRequest(
         underlying="NIFTY",
-        expiry=date(2025, 7, 31),
+        expiry="2025-07-31",        # ← MUST BE STRING
         spot=22450.0,
         instruments=[
             {
@@ -46,6 +45,7 @@ def generate_signal():
             "vix": 13.2
         }
     )
+
 
     decision = evaluate_credit_spread(dummy_request)
 
