@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.db import init_db
 from app.engine.evaluate_credit_spread import evaluate_credit_spread
-from app.engine.models import DecideRequest, Instrument
+from app.engine.models import DecideRequest
 from app.engine.risk_guard import passes_risk_guard
 
 app = FastAPI(title="Signal Engine")
@@ -12,37 +12,43 @@ def startup():
 
 @app.get("/signal")
 def generate_signal():
-
-    # MOCK DATA (will later come from option-chain service)
-    request = DecideRequest(
-        underlying="NIFTY",
-        expiry="2025-11-27",
-        spot=22500,
-        instruments=[
-            Instrument(strike=22300, opt_type="PE", ltp=120, oi=150000),
-            Instrument(strike=22100, opt_type="PE", ltp=60, oi=90000),
-        ]
-    )
-
-    decision = evaluate_credit_spread(request)
-
-if decision.action == "NO_TRADE":
-    return {
-        "status": "rejected",
-        "reason": decision.reason
+    dummy_request = DecideRequest(
+    underlying="NIFTY",
+    instruments=[
+        {
+            "instrument_key": "NIFTY25JUL22300CE",
+            "strike": 22300,
+            "opt_type": "CE",
+            "expiry": "2025-07-31",
+            "oi": 10000,
+            "ltp": 120
+        },
+        {
+            "instrument_key": "NIFTY25JUL22100PE",
+            "strike": 22100,
+            "opt_type": "PE",
+            "expiry": "2025-07-31",
+            "oi": 8000,
+            "ltp": 70
+        }
+    ],
+    indicators={
+        "vix": 13.2,
+        "pcr": 0.95
     }
+)
 
-ok, risk_reason = passes_risk_guard(decision.trade_payload["max_risk"])
 
-if not ok:
+    decision = evaluate_credit_spread(dummy_request)
+
+    if decision.action == "NO_TRADE":
+        return {"status": "rejected", "reason": decision.reason}
+
+    ok, risk_reason = passes_risk_guard(decision.trade_payload["max_risk"])
+    if not ok:
+        return {"status": "rejected", "reason": risk_reason}
+
     return {
-        "status": "rejected",
-        "reason": risk_reason
+        "status": "ok",
+        "signal": decision.model_dump(exclude_unset=True)
     }
-
-return {
-    "status": "ok",
-    "signal": decision.model_dump(exclude_unset=True)
-}
-
-

@@ -49,3 +49,5 @@ def close_db():
         _conn.close()
     except Exception:
         pass
+def init_db():
+    return _conn

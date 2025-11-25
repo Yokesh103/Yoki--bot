@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Any, Dict, Optional, List
 
+
 class IndicatorSnapshot(BaseModel):
     adx14: float
     rsi14: float
@@ -10,21 +11,26 @@ class IndicatorSnapshot(BaseModel):
     is_expiry_thursday: bool = False
     time_str: Optional[str] = None  # "10:32"
 
+
 class InstrumentRow(BaseModel):
     instrument_key: str
     strike: float
-    opt_type: str  # "CE"/"PE"
+    opt_type: str          # "CE" / "PE"
     expiry: str
+    oi: int                # REQUIRED for OI-based selection
+    ltp: float             # REQUIRED for premium calculation
+
 
 class DecideRequest(BaseModel):
     underlying: str
     expiry: str
+    spot: float
     instruments: List[InstrumentRow]
     indicators: IndicatorSnapshot
-    spot: float
+
 
 class DecisionResult(BaseModel):
-    action: str  # TRADE | NO_TRADE
+    action: str                     # TRADE | NO_TRADE
     strategy: Optional[str]
     reason: Optional[str]
     trade_payload: Optional[Dict[str, Any]]
