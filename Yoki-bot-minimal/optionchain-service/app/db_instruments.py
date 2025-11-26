@@ -26,3 +26,20 @@ def get_instruments_from_db(underlying: str, expiry: Optional[str] = None) -> Li
     conn.close()
 
     return [dict(r) for r in rows]
+
+def get_expiries_for_underlying(underlying: str):
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT DISTINCT expiry
+        FROM instruments
+        WHERE underlying = ?
+        ORDER BY expiry ASC
+    """, (underlying,))
+
+    rows = cur.fetchall()
+    conn.close()
+
+    return [r[0] for r in rows]
+
