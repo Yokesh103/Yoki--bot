@@ -34,28 +34,32 @@ def download_and_parse_csv():
     resp = requests.get(INSTRUMENTS_URL, timeout=60)
     resp.raise_for_status()
 
-    with gzip.open(Path("data/instruments.csv.gz"), "wb") as f:
+    gz_path = Path("data/instruments.csv.gz")
+
+    with open(gz_path, "wb") as f:
         f.write(resp.content)
 
     print("Parsing CSV...")
+
     rows = []
 
-    with gzip.open("data/instruments.csv.gz", "rt", newline="") as f:
+    with gzip.open(gz_path, "rt", encoding="utf-8", errors="ignore") as f:
         reader = csv.DictReader(f)
 
         for row in reader:
-            if row["exchange"] != "NSE_FO":
+            if row.get("exchange") != "NSE_FO":
                 continue
 
-            if row["instrument_type"] != "OPTIDX":
+            if row.get("instrument_type") != "OPTIDX":
                 continue
 
-            if row["name"] not in ("NIFTY", "BANKNIFTY"):
+            if row.get("name") not in ("NIFTY", "BANKNIFTY"):
                 continue
 
             rows.append(row)
 
     return rows
+
 
 
 def load_instruments():
