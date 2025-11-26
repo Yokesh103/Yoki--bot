@@ -1,11 +1,7 @@
-# app/engine/evaluate_credit_spread.py
+from uuid import uuid4
 from app.engine.models import DecideRequest, DecisionResult
 from app.config import SIMULATED_CHARGES, PREMIUM_THRESHOLD
-from uuid import uuid4
-import logging
 
-LOGGER = logging.getLogger("signal_engine")
-# tune these or move to config
 MIN_DISTANCE = 150
 MAX_DISTANCE = 200
 HEDGE_GAP = 200
@@ -14,36 +10,33 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
     dec_id = str(uuid4())
     insts = [i.dict() for i in req.instruments]
 
-    # consider only the intended side — keep this strict for now
     pes = [i for i in insts if i.get("opt_type") == "PE"]
+    available_strikes = sorted([i["strike"] for i in pes])
 
-    # debugging info
-    LOGGER.debug("spot=%s, available_pe_strikes=%s", req.spot, [i["strike"] for i in pes])
-
-    candidates = []
-    for i in pes:
-        diff = req.spot - i["strike"]
-        if MIN_DISTANCE <= diff <= MAX_DISTANCE:
-            candidates.append((i, diff))
+    candidates = [
+        i for i in pes
+        if MIN_DISTANCE <= (req.spot - i["strike"]) <= MAX_DISTANCE
+    ]
 
     if not candidates:
-        # return richer diagnostic info to help debugging
         return DecisionResult(
             action="NO_TRADE",
             strategy="CREDIT_SPREAD",
             reason="NO_STRIKE_IN_RANGE",
             trade_payload={
                 "spot": req.spot,
-                "available_pe_strikes": [i["strike"] for i in pes],
+                "available_pe_strikes": available_strikes,
                 "required_distance": [MIN_DISTANCE, MAX_DISTANCE]
             },
             decision_id=dec_id
         )
 
-    # choose short leg by highest OI (as before)
-    short_leg = max((c[0] for c in candidates), key=lambda x: x.get("oi", 0))
+    short_leg = max(candidates, key=lambda x: x.get("oi", 0))
 
-    hedge_candidates = [i for i in pes if i["strike"] == short_leg["strike"] - HEDGE_GAP]
+    hedge_candidates = [
+        i for i in pes
+        if i["strike"] == short_leg["strike"] - HEDGE_GAP
+    ]
 
     if not hedge_candidates:
         return DecisionResult(
@@ -53,7 +46,7 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
             trade_payload={
                 "short_strike": short_leg["strike"],
                 "required_hedge": short_leg["strike"] - HEDGE_GAP,
-                "available_pe_strikes": [i["strike"] for i in pes]
+                "available_pe_strikes": available_strikes
             },
             decision_id=dec_id
         )
@@ -61,6 +54,7 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
     hedge_leg = hedge_candidates[0]
     short_prem = short_leg["ltp"]
     hedge_prem = hedge_leg["ltp"]
+
     gross_premium = short_prem - hedge_prem
     net_premium = gross_premium - SIMULATED_CHARGES
     max_risk = (short_leg["strike"] - hedge_leg["strike"]) * 50 - gross_premium * 50
@@ -73,7 +67,7 @@ def evaluate_credit_spread(req: DecideRequest) -> DecisionResult:
             trade_payload={
                 "gross_premium": gross_premium,
                 "net_premium": net_premium,
-                "premium_threshold": PREMIUM_THRESHOLD
+                "threshold": PREMIUM_THRESHOLD
             },
             decision_id=dec_id
         )
