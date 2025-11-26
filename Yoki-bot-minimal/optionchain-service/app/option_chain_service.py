@@ -1,6 +1,12 @@
 from typing import Dict, Any, List
 
-def build_option_chain(underlying: str, expiry: str, instruments: List[Dict[str, Any]], snapshot: Dict[str, Any]):
+def build_option_chain(
+    underlying: str,
+    expiry: str,
+    instruments: List[Dict[str, Any]],
+    snapshot: Dict[str, Any],
+    spot: float
+):
     data = snapshot.get("data", {})
 
     rows = []
@@ -10,8 +16,10 @@ def build_option_chain(underlying: str, expiry: str, instruments: List[Dict[str,
         md = data.get(key, {}).get("market_data", {})
 
         row = {
+            "instrument_key": key,                # ✅ REQUIRED
             "strike": inst["strike"],
-            "type": inst["opt_type"],
+            "opt_type": inst["opt_type"],        # ✅ correct name
+            "expiry": expiry,                    # ✅ REQUIRED
             "ltp": md.get("last_traded_price"),
             "oi": md.get("oi", 0)
         }
@@ -20,5 +28,13 @@ def build_option_chain(underlying: str, expiry: str, instruments: List[Dict[str,
     return {
         "underlying": underlying,
         "expiry": expiry,
-        "rows": rows
+        "spot": spot,                            # ✅ REQUIRED
+        "instruments": rows,                     # ✅ NOT "rows"
+        "indicators": {                         # ✅ CONTRACT BLOCK
+            "adx14": 0,
+            "rsi14": 0,
+            "atr14": 0,
+            "ivrank": 0,
+            "vix": 0
+        }
     }
