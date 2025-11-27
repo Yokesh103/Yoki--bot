@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 from app.upstox_ws import start_ws
+from app.redis_client import redis_client
+import json
 
 app = FastAPI(title="Live Feed Microservice")
 
 
 @app.on_event("startup")
-def boot_live_feed():
-    # Starts Upstox WebSocket and Redis publisher
+def boot():
     start_ws()
 
 
@@ -17,12 +18,9 @@ def health():
 
 @app.get("/tick/{instrument_key}")
 def get_tick(instrument_key: str):
-    from app.redis_client import redis_client
-    import json
-
     data = redis_client.get(instrument_key)
 
     if not data:
-        return {"error": "No live data for this instrument yet"}
+        return {"error": "No live data yet"}
 
     return json.loads(data)

@@ -1,39 +1,30 @@
 import json
-import redis
 import websocket
+from app.redis_client import redis_client
 from app.config import UPSTOX_ACCESS_TOKEN
-
-REDIS_HOST = "localhost"
-REDIS_PORT = 6379
-
-r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
 
 WS_URL = "wss://api.upstox.com/v2/feed/market-data-feed"
 
 
 def on_message(ws, message):
     data = json.loads(message)
-
     feeds = data.get("feeds", {})
+
     for instrument_key, content in feeds.items():
         market = content.get("ff", {}).get("marketFF", {})
 
-        ltp = market.get("ltp")
-        oi = market.get("oi", 0)
-
         payload = {
-            "instrument_key": instrument_key,
-            "ltp": ltp,
-            "oi": oi
+            "ltp": market.get("ltp"),
+            "oi": market.get("oi", 0)
         }
 
-        r.set(instrument_key, json.dumps(payload))
+        redis_client.set(instrument_key, json.dumps(payload))
 
 
 def on_open(ws):
-    print("✅ Upstox WebSocket Connected")
+    print("✅ Upstox WebSocket Connected & Subscribed")
 
-    subscribe_payload = {
+    ws.send(json.dumps({
         "guid": "live-feed",
         "method": "sub",
         "data": {
@@ -42,17 +33,15 @@ def on_open(ws):
                 "NSE_INDEX|Nifty 50"
             ]
         }
-    }
-
-    ws.send(json.dumps(subscribe_payload))
+    }))
 
 
 def start_ws():
-    headers = {
-        "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"
-    }
-
     ws = websocket.WebSocketApp(
         WS_URL,
-        header=[f"{k}: {v}" for k, v in headers.items()],
+        header=[f"Authorization: Bearer {UPSTOX_ACCESS_TOKEN}"],
         on_message=on_message,
+        on_open=on_open
+    )
+
+    ws.run_forever()
