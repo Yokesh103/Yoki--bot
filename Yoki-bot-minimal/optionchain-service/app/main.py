@@ -18,17 +18,11 @@ def health():
     return {"status": "OK"}
 
 
-# ========================
-# EXPIRY LIST ENDPOINT
-# ========================
 @app.get("/expiries/{underlying}")
 def get_expiries(underlying: Literal["NIFTY", "BANKNIFTY"]):
     return get_expiries_for_underlying(underlying)
 
 
-# ========================
-# AUTO OPTION CHAIN
-# ========================
 @app.get("/option-chain/{underlying}/auto")
 def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
 
@@ -36,29 +30,26 @@ def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
     if not expiries:
         return {"error": "No expiries found in DB"}
 
-    # ✅ CORRECT EXPIRY SELECTION LOGIC
     today = date.today().isoformat()
     valid_expiries = [e for e in expiries if e >= today]
 
     if not valid_expiries:
         return {"error": "No valid upcoming expiries"}
 
-    expiry = valid_expiries[0]  # nearest tradable expiry
+    expiry = valid_expiries[0]
 
     instruments = get_instruments_from_db(underlying, expiry)
     if not instruments:
         return {"error": "No instruments found for given underlying & expiry"}
 
-    # ---- SPOT DERIVATION ----
-    strikes = sorted({inst["strike"] for inst in instruments})
+    strikes = sorted({float(inst["strike"]) for inst in instruments})
     if not strikes:
         return {"error": "No strikes available"}
 
     mid = len(strikes) // 2
-    spot = float(strikes[mid])
+    spot = strikes[mid]
     atm = spot
 
-    # ---- LIVE MARKET DATA ----
     snapshot = data_source.get_snapshot(
         [inst["instrument_key"] for inst in instruments]
     )
@@ -67,8 +58,7 @@ def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
         underlying=underlying,
         expiry=expiry,
         instruments=instruments,
-        snapshot=snapshot,
-        spot=spot
+        snapshot=snapshot
     )
 
     return {
