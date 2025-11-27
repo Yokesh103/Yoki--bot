@@ -59,6 +59,7 @@ def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
         expiry=expiry,
         instruments=instruments,
         snapshot=snapshot
+        spot=spot
     )
 
     return {
