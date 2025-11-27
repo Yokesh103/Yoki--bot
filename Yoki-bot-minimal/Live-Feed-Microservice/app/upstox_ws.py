@@ -6,14 +6,20 @@ from app.config import UPSTOX_ACCESS_TOKEN
 
 WS_URL = "wss://api.upstox.com/v2/feed/market-data-feed"
 
-
 def start_ws(heartbeat_callback=None):
 
     def on_message(ws, message):
+        print("RAW FRAME:", message)  # <-- critical debug
+
         if heartbeat_callback:
             heartbeat_callback()
 
-        data = json.loads(message)
+        try:
+            data = json.loads(message)
+        except Exception as e:
+            print("Non-JSON frame received:", e)
+            return
+
         feeds = data.get("feeds", {})
 
         for instrument_key, content in feeds.items():
@@ -26,7 +32,7 @@ def start_ws(heartbeat_callback=None):
             }
 
             redis_client.set(instrument_key, json.dumps(payload))
-            print(f"📡 {instrument_key} | LTP: {payload['ltp']} | OI: {payload['oi']}")
+            print(f"TICK ✅ {instrument_key} | LTP: {payload['ltp']} | OI: {payload['oi']}")
 
     def on_open(ws):
         print("✅ Upstox WebSocket Connected")
@@ -37,8 +43,8 @@ def start_ws(heartbeat_callback=None):
             "data": {
                 "mode": "full",
                 "instrumentKeys": [
-                    "NSE_INDEX|Nifty 50",
-                    "NSE_FO|46879"
+                    "NSE_INDEX|NIFTY 50",
+                    "NSE_EQ|RELIANCE"
                 ]
             }
         }))
