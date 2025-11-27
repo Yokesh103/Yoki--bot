@@ -1,0 +1,4 @@
+import os
+
+UPSTOX_ACCESS_TOKEN = os.getenv("eyJ0eXAiOiJKV1QiLCJrZXlfaWQiOiJza192MS4wIiwiYWxnIjoiSFMyNTYifQ.eyJzdWIiOiI4QkFMRUgiLCJqdGkiOiI2OTI3ZTlmMTQ4NjRlMDA4M2JlMzM1NTYiLCJpc011bHRpQ2xpZW50IjpmYWxzZSwiaXNQbHVzUGxhbiI6ZmFsc2UsImlhdCI6MTc2NDIyMzQ3NCwiaXNzIjoidWRhcGktZ2F0ZXdheS1zZXJ2aWNlIiwiZXhwIjoxNzY0MjgwODAwfQ.34hT1YQZ_LBmvQcmtw4Xz2Ly5GbHasud58ytTb8oWuE")
+UPSTOX_WS_URL = "wss://api.upstox.com/v2/feed/market-data"
