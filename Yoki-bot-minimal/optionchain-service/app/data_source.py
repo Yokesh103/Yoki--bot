@@ -1,33 +1,26 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+import os
 import requests
-from app.config import UPSTOX_ACCESS_TOKEN
+from typing import List, Dict, Any
 
-UPSTOX_QUOTES_URL = "https://api.upstox.com/v2/market-quote/quotes"
+UPSTOX_BASE = "https://api.upstox.com/v2"
+ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 
 
-class MarketDataSource(ABC):
-    @abstractmethod
+class RestMarketDataSource:
+
+    def __init__(self):
+        if not ACCESS_TOKEN:
+            raise RuntimeError("UPSTOX_ACCESS_TOKEN environment variable not set")
+
     def get_snapshot(self, instrument_keys: List[str]) -> Dict[str, Any]:
-        raise NotImplementedError
+        url = f"{UPSTOX_BASE}/market-quote/quotes"
+        params = {"instrument_key": ",".join(instrument_keys)}
 
-
-class RestMarketDataSource(MarketDataSource):
-    def get_snapshot(self, instrument_keys: List[str]) -> Dict[str, Any]:
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"
+            "Authorization": f"Bearer {ACCESS_TOKEN}"
         }
 
-        params = {
-            "instrument_key": ",".join(instrument_keys)
-        }
-
-        response = requests.get(
-            UPSTOX_QUOTES_URL,
-            headers=headers,
-            params=params
-        )
-
+        response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
         return response.json()
