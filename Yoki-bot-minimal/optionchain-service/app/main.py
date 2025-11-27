@@ -30,6 +30,8 @@ def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
     if not expiries:
         return {"error": "No expiries found in DB"}
 
+    from datetime import date
+
     today = date.today().isoformat()
     valid_expiries = [e for e in expiries if e >= today]
 
@@ -42,12 +44,12 @@ def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
     if not instruments:
         return {"error": "No instruments found for given underlying & expiry"}
 
-    strikes = sorted({float(inst["strike"]) for inst in instruments})
+    strikes = sorted({inst["strike"] for inst in instruments})
     if not strikes:
         return {"error": "No strikes available"}
 
     mid = len(strikes) // 2
-    spot = strikes[mid]
+    spot = float(strikes[mid])
     atm = spot
 
     snapshot = data_source.get_snapshot(
@@ -58,7 +60,7 @@ def get_option_chain_auto(underlying: Literal["NIFTY", "BANKNIFTY"]):
         underlying=underlying,
         expiry=expiry,
         instruments=instruments,
-        snapshot=snapshot
+        snapshot=snapshot,
         spot=spot
     )
 
