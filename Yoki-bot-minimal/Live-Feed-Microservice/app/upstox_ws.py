@@ -1,53 +1,58 @@
 import json
-import threading
-from websocket import WebSocketApp
-from app.cache import update_tick
-from app.utils import extract_tick_data
-from app.config import UPSTOX_ACCESS_TOKEN, UPSTOX_WS_URL
+import redis
+import websocket
+from app.config import UPSTOX_ACCESS_TOKEN
+
+REDIS_HOST = "localhost"
+REDIS_PORT = 6379
+
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=0, decode_responses=True)
+
+WS_URL = "wss://api.upstox.com/v2/feed/market-data-feed"
 
 
 def on_message(ws, message):
-    payload = json.loads(message)
+    data = json.loads(message)
 
-    if "data" not in payload:
-        return
+    feeds = data.get("feeds", {})
+    for instrument_key, content in feeds.items():
+        market = content.get("ff", {}).get("marketFF", {})
 
-    for tick in payload["data"]:
-        inst_key = tick.get("instrument_key")
-        if inst_key:
-            clean = extract_tick_data(tick)
-            update_tick(inst_key, clean)
+        ltp = market.get("ltp")
+        oi = market.get("oi", 0)
+
+        payload = {
+            "instrument_key": instrument_key,
+            "ltp": ltp,
+            "oi": oi
+        }
+
+        r.set(instrument_key, json.dumps(payload))
 
 
 def on_open(ws):
-    # SUBSCRIBE TO LIVE INDEX + OPTIONS
+    print("✅ Upstox WebSocket Connected")
+
     subscribe_payload = {
-        "guid": "live-feed-001",
+        "guid": "live-feed",
         "method": "sub",
         "data": {
             "mode": "full",
             "instrumentKeys": [
-                "NSE_INDEX|Nifty 50",
-                "NSE_INDEX|Nifty Bank"
+                "NSE_INDEX|Nifty 50"
             ]
         }
     }
+
     ws.send(json.dumps(subscribe_payload))
 
 
 def start_ws():
-    headers = [f"Authorization: Bearer {UPSTOX_ACCESS_TOKEN}"]
+    headers = {
+        "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"
+    }
 
-    ws = WebSocketApp(
-        UPSTOX_WS_URL,
-        header=headers,
-        on_open=on_open,
-        on_message=on_message
-    )
-
-    ws.run_forever()
-
-
-def run_ws_thread():
-    t = threading.Thread(target=start_ws, daemon=True)
-    t.start()
+    ws = websocket.WebSocketApp(
+        WS_URL,
+        header=[f"{k}: {v}" for k, v in headers.items()],
+        on_message=on_message,
