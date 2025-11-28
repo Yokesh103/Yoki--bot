@@ -1,9 +1,0 @@
-syntax = "proto3";
-
-message FeedResponse {
-  map<string, FeedData> feeds = 1;
-}
-
-message FeedData {
-  double ltp = 1;
-}

@@ -1,32 +1,18 @@
-import json, uuid, datetime
-from app.db import get_conn
+import json
+from pathlib import Path
 
-def log_decision(payload: dict) -> str:
-    conn = get_conn()
-    cur = conn.cursor()
-    id_ = str(uuid.uuid4())
-    cur.execute("""
-    INSERT INTO trade_decision_logs (
-        id, timestamp, underlying, expiry, market_state,
-        filter_data, strategy_selected, rejection_reason, strikes_chosen,
-        confidence_score, execution_status, premium_after_charges, max_risk, pnl_after_charges, raw_payload
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-    """, (
-        id_,
-        datetime.datetime.utcnow().isoformat(),
-        payload.get("underlying"),
-        payload.get("expiry"),
-        payload.get("market_state"),
-        json.dumps(payload.get("filter_data", {})),
-        payload.get("strategy_selected"),
-        payload.get("rejection_reason"),
-        json.dumps(payload.get("strikes_chosen", {})),
-        payload.get("confidence_score"),
-        payload.get("execution_status"),
-        payload.get("premium_after_charges"),
-        payload.get("max_risk"),
-        payload.get("pnl_after_charges"),
-        json.dumps(payload)
-    ))
-    conn.commit()
-    return id_
+from app.engine.models import DecideRequest, DecisionResult
+from app.engine.evaluate_credit_spread import evaluate_credit_spread
+
+
+def load_mock_request() -> DecideRequest:
+    file_path = Path(__file__).resolve().parents[1] / "data" / "mock_request.json"
+    with open(file_path) as f:
+        data = json.load(f)
+    return DecideRequest(**data)
+
+
+def generate_decision() -> DecisionResult:
+    req = load_mock_request()
+    decision = evaluate_credit_spread(req)
+    return decision

@@ -1,37 +1,24 @@
+from typing import List, Optional
 from pydantic import BaseModel
-from typing import Any, Dict, Optional, List
 
 
-class IndicatorSnapshot(BaseModel):
-    adx14: float
-    rsi14: float
-    atr14: float
-    ivrank: float
-    vix: Optional[float] = None
-    is_expiry_thursday: bool = False
-    time_str: Optional[str] = None  # "10:32"
-
-
-class InstrumentRow(BaseModel):
-    instrument_key: str
+class Instrument(BaseModel):
     strike: float
-    opt_type: str          # "CE" / "PE"
-    expiry: str
-    oi: int                # REQUIRED for OI-based selection
-    ltp: float             # REQUIRED for premium calculation
+    opt_type: str
+    ltp: float
+    oi: Optional[float] = None
 
 
 class DecideRequest(BaseModel):
     underlying: str
     expiry: str
     spot: float
-    instruments: List[InstrumentRow]
-    indicators: IndicatorSnapshot
+    instruments: List[Instrument]
 
 
 class DecisionResult(BaseModel):
-    action: str                     # TRADE | NO_TRADE
-    strategy: Optional[str]
-    reason: Optional[str]
-    trade_payload: Optional[Dict[str, Any]]
-    decision_id: Optional[str]
+    action: str
+    strategy: str
+    reason: Optional[str] = None
+    trade_payload: Optional[dict] = None
+    decision_id: str
