@@ -1,5 +1,5 @@
-fastapi
-uvicorn
-websocket-client
-requests
-python-dotenv
+websocket-client==1.9.0
+redis>=4.5.0
+fastapi>=0.95.0
+uvicorn>=0.22.0
+python-dotenv>=1.0.0
